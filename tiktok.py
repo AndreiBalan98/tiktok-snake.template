@@ -17,16 +17,16 @@ SNAKE_TAIL_COLOR = (144, 238, 144) # verde deschis — coadă
 APPLE_COLOR      = (210, 40, 40)
 SCORE_COLOR      = (20, 20, 20)
 
-GRID_COLS = 10
-GRID_ROWS = 15
+GRID_COLS = 20
+GRID_ROWS = 30
 
 GRID_MARGIN_TOP    = 160   # px spațiu sus pentru scor
 GRID_MARGIN_BOTTOM = 60
 GRID_MARGIN_LEFT   = 30
 GRID_MARGIN_RIGHT  = 30
 
-CELL_RADIUS_RATIO = 0.5   # raza cerc față de jumătate celulă (0–1)
-SNAKE_SPEED       = 10.0   # celule / secundă
+CELL_RADIUS_RATIO = 0.9   # raza cerc față de jumătate celulă (0–1)
+SNAKE_SPEED       = 100.0   # celule / secundă
 
 SCORE_FONT_SIZE = 120
 GAME_OVER_PAUSE = 1.0      # secunde înainte de închidere după game-over
