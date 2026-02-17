@@ -122,7 +122,7 @@ def get_next_step(snake, snake_set, apple, cols, rows):
     # Nivel 3 — Orice mișcare validă
     for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
         nr, nc = head[0] + dr, head[1] + dc
-        if 0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in obstacles:
+        if 0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in obstacles_no_tail:
             return (dr, dc)
 
     return None
@@ -143,15 +143,18 @@ def main():
     canvas = pygame.Surface((CW, CH)).convert()
     font = pygame.font.SysFont("Arial", SCORE_FONT_SIZE, bold=True)
 
-    grid_w = CW - GRID_MARGIN_LEFT - GRID_MARGIN_RIGHT
-    grid_h = CH - GRID_MARGIN_TOP - GRID_MARGIN_BOTTOM
-    cell_w = grid_w / GRID_COLS
-    cell_h = grid_h / GRID_ROWS
-    radius = int(min(cell_w, cell_h) * CELL_RADIUS_RATIO)
+    avail_w = CW - GRID_MARGIN_LEFT - GRID_MARGIN_RIGHT
+    avail_h = CH - GRID_MARGIN_TOP  - GRID_MARGIN_BOTTOM
+    cell_size = min(avail_w / GRID_COLS, avail_h / GRID_ROWS)
+    radius = int(cell_size / 2 * CELL_RADIUS_RATIO)
+
+    # Centrează gridul în zona disponibilă
+    grid_x0 = GRID_MARGIN_LEFT + (avail_w - cell_size * GRID_COLS) / 2
+    grid_y0 = GRID_MARGIN_TOP  + (avail_h - cell_size * GRID_ROWS) / 2
 
     def cell_center(r, c):
-        x = GRID_MARGIN_LEFT + (c + 0.5) * cell_w
-        y = GRID_MARGIN_TOP + (r + 0.5) * cell_h
+        x = grid_x0 + (c + 0.5) * cell_size
+        y = grid_y0 + (r + 0.5) * cell_size
         return int(x), int(y)
 
     # Stare joc
@@ -205,7 +208,9 @@ def main():
                         if apple is None:
                             game_over = True  # grid plin
                     else:
-                        snake_set.discard(snake.pop())
+                        old_tail = snake.pop()
+                        if old_tail != new_head:
+                            snake_set.discard(old_tail)
             else:
                 game_over_timer += frame_dt
                 if game_over_timer >= GAME_OVER_PAUSE:
