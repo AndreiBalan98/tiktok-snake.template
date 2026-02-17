@@ -26,7 +26,7 @@ GRID_MARGIN_LEFT   = 30
 GRID_MARGIN_RIGHT  = 30
 
 CELL_RADIUS_RATIO = 0.5   # raza cerc față de jumătate celulă (0–1)
-SNAKE_SPEED       = 50.0   # celule / secundă
+SNAKE_SPEED       = 75.0   # celule / secundă
 
 SCORE_FONT_SIZE = 120
 GAME_OVER_PAUSE = 1.0      # secunde înainte de închidere după game-over
