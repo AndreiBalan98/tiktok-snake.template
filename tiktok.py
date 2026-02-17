@@ -26,7 +26,7 @@ GRID_MARGIN_LEFT   = 30
 GRID_MARGIN_RIGHT  = 30
 
 CELL_RADIUS_RATIO = 0.5   # raza cerc față de jumătate celulă (0–1)
-SNAKE_SPEED       = 30.0   # celule / secundă
+SNAKE_SPEED       = 50.0   # celule / secundă
 
 SCORE_FONT_SIZE = 120
 GAME_OVER_PAUSE = 1.0      # secunde înainte de închidere după game-over
@@ -78,6 +78,53 @@ def bfs_path(head, apple, obstacles, cols, rows):
                     return path + [(dr, dc)]
                 visited.add(npos)
                 queue.append((npos, path + [(dr, dc)]))
+    return None
+
+
+def simulate_path(snake_deque, path, apple):
+    """Simulează urmarea unui traseu BFS, returnând (deque_nou, set_nou)."""
+    sim = collections.deque(snake_deque)
+    sim_set = set(snake_deque)
+    for dr, dc in path:
+        new_head = (sim[0][0] + dr, sim[0][1] + dc)
+        sim.appendleft(new_head)
+        sim_set.add(new_head)
+        if new_head != apple:
+            tail = sim.pop()
+            sim_set.discard(tail)
+    return sim, sim_set
+
+
+def get_next_step(snake, snake_set, apple, cols, rows):
+    """Returnează (dr, dc) pentru pasul următor folosind safe path + tail chasing."""
+    head = snake[0]
+    tail = snake[-1]
+
+    # Nivel 1 — Drum sigur spre măr
+    obstacles = snake_set - {head}
+    path_to_apple = bfs_path(head, apple, obstacles, cols, rows)
+
+    if path_to_apple:
+        sim_snake, sim_set = simulate_path(snake, path_to_apple, apple)
+        sim_head = sim_snake[0]
+        sim_tail = sim_snake[-1]
+        sim_obstacles = sim_set - {sim_head} - {sim_tail}
+        path_to_sim_tail = bfs_path(sim_head, sim_tail, sim_obstacles, cols, rows)
+        if path_to_sim_tail:
+            return path_to_apple[0]
+
+    # Nivel 2 — Urmărire coadă
+    obstacles_no_tail = snake_set - {head} - {tail}
+    path_to_tail = bfs_path(head, tail, obstacles_no_tail, cols, rows)
+    if path_to_tail:
+        return path_to_tail[0]
+
+    # Nivel 3 — Orice mișcare validă
+    for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        nr, nc = head[0] + dr, head[1] + dc
+        if 0 <= nr < rows and 0 <= nc < cols and (nr, nc) not in obstacles:
+            return (dr, dc)
+
     return None
 
 
@@ -139,15 +186,13 @@ def main():
                 while move_acc >= step_t and not game_over:
                     move_acc -= step_t
 
-                    head = snake[0]
-                    obstacles = snake_set - {head}
-                    path = bfs_path(head, apple, obstacles, GRID_COLS, GRID_ROWS)
-
-                    if not path:
+                    step = get_next_step(snake, snake_set, apple, GRID_COLS, GRID_ROWS)
+                    if step is None:
                         game_over = True
                         break
 
-                    dr, dc = path[0]
+                    dr, dc = step
+                    head = snake[0]
                     new_head = (head[0] + dr, head[1] + dc)
                     ate = (new_head == apple)
 
