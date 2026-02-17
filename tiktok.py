@@ -31,7 +31,7 @@ SNAKE_SPEED       = 25.0   # celule / secundă
 SCORE_FONT_SIZE = 120
 GAME_OVER_PAUSE = 1.0      # secunde înainte de închidere după game-over
 
-RECORD_VIDEO = True
+RECORD_VIDEO = False
 OUTPUT_MP4   = "output.mp4"
 FFMPEG_PATH  = "ffmpeg"
 
