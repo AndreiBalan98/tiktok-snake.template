@@ -12,8 +12,8 @@ CW, CH = 1080, 1920
 FPS = 60
 
 BG_COLOR         = (255, 255, 255)
-SNAKE_COLOR      = (34, 139, 34)
-SNAKE_HEAD_COLOR = (20, 90, 20)
+SNAKE_HEAD_COLOR = (20, 90, 20)    # verde închis — cap
+SNAKE_TAIL_COLOR = (144, 238, 144) # verde deschis — coadă
 APPLE_COLOR      = (210, 40, 40)
 SCORE_COLOR      = (20, 20, 20)
 
@@ -223,12 +223,16 @@ def main():
             if apple:
                 pygame.draw.circle(canvas, APPLE_COLOR, cell_center(*apple), radius)
 
-            # Corp șarpe
-            for seg in snake:
-                pygame.draw.circle(canvas, SNAKE_COLOR, cell_center(*seg), radius)
-
-            # Cap (mai închis)
-            pygame.draw.circle(canvas, SNAKE_HEAD_COLOR, cell_center(*snake[0]), radius)
+            # Corp șarpe (gradient cap→coadă)
+            n = len(snake)
+            for i, seg in enumerate(snake):
+                t = i / (n - 1) if n > 1 else 0
+                color = (
+                    int(SNAKE_HEAD_COLOR[0] + t * (SNAKE_TAIL_COLOR[0] - SNAKE_HEAD_COLOR[0])),
+                    int(SNAKE_HEAD_COLOR[1] + t * (SNAKE_TAIL_COLOR[1] - SNAKE_HEAD_COLOR[1])),
+                    int(SNAKE_HEAD_COLOR[2] + t * (SNAKE_TAIL_COLOR[2] - SNAKE_HEAD_COLOR[2])),
+                )
+                pygame.draw.circle(canvas, color, cell_center(*seg), radius)
 
             # Afișare scalată
             scaled = pygame.transform.smoothscale(canvas, screen.get_size())
