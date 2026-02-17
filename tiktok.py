@@ -1,0 +1,208 @@
+import subprocess
+import collections
+import random
+
+import pygame  # type: ignore
+
+# ==========================================================
+# CONFIGURARE GLOBALĂ
+# ==========================================================
+
+CW, CH = 1080, 1920
+FPS = 60
+
+BG_COLOR         = (255, 255, 255)
+SNAKE_COLOR      = (34, 139, 34)
+SNAKE_HEAD_COLOR = (20, 90, 20)
+APPLE_COLOR      = (210, 40, 40)
+SCORE_COLOR      = (20, 20, 20)
+
+GRID_COLS = 20
+GRID_ROWS = 33
+
+GRID_MARGIN_TOP    = 160   # px spațiu sus pentru scor
+GRID_MARGIN_BOTTOM = 60
+GRID_MARGIN_LEFT   = 30
+GRID_MARGIN_RIGHT  = 30
+
+CELL_RADIUS_RATIO = 0.42   # raza cerc față de jumătate celulă (0–1)
+SNAKE_SPEED       = 10.0   # celule / secundă
+
+SCORE_FONT_SIZE = 120
+GAME_OVER_PAUSE = 1.0      # secunde înainte de închidere după game-over
+
+RECORD_VIDEO = True
+OUTPUT_MP4   = "output.mp4"
+FFMPEG_PATH  = "ffmpeg"
+
+# ==========================================================
+
+
+def start_ffmpeg():
+    cmd = [
+        FFMPEG_PATH, "-y",
+        "-f", "rawvideo",
+        "-vcodec", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-s", f"{CW}x{CH}",
+        "-r", str(FPS),
+        "-i", "-",
+        "-an",
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-crf", "18",
+        "-preset", "veryfast",
+        OUTPUT_MP4,
+    ]
+    return subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+
+def spawn_apple(snake_set, cols, rows):
+    free = [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in snake_set]
+    return random.choice(free) if free else None
+
+
+def bfs_path(head, apple, obstacles, cols, rows):
+    """BFS shortest path de la head la apple, evitând obstacles.
+    Returnează lista de pași (dr, dc) sau None dacă nu există drum."""
+    queue = collections.deque()
+    queue.append((head, []))
+    visited = {head}
+    while queue:
+        (r, c), path = queue.popleft()
+        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nr, nc = r + dr, c + dc
+            npos = (nr, nc)
+            if 0 <= nr < rows and 0 <= nc < cols and npos not in visited and npos not in obstacles:
+                if npos == apple:
+                    return path + [(dr, dc)]
+                visited.add(npos)
+                queue.append((npos, path + [(dr, dc)]))
+    return None
+
+
+def main():
+    pygame.init()
+
+    info = pygame.display.Info()
+    scale = min((info.current_w * 0.92) / CW, (info.current_h * 0.92) / CH)
+    win_w = max(320, int(CW * scale))
+    win_h = max(568, int(CH * scale))
+
+    screen = pygame.display.set_mode((win_w, win_h))
+    pygame.display.set_caption("Snake")
+    clock = pygame.time.Clock()
+
+    canvas = pygame.Surface((CW, CH)).convert()
+    font = pygame.font.SysFont("Arial", SCORE_FONT_SIZE, bold=True)
+
+    grid_w = CW - GRID_MARGIN_LEFT - GRID_MARGIN_RIGHT
+    grid_h = CH - GRID_MARGIN_TOP - GRID_MARGIN_BOTTOM
+    cell_w = grid_w / GRID_COLS
+    cell_h = grid_h / GRID_ROWS
+    radius = int(min(cell_w, cell_h) * CELL_RADIUS_RATIO)
+
+    def cell_center(r, c):
+        x = GRID_MARGIN_LEFT + (c + 0.5) * cell_w
+        y = GRID_MARGIN_TOP + (r + 0.5) * cell_h
+        return int(x), int(y)
+
+    # Stare joc
+    sr, sc = GRID_ROWS // 2, GRID_COLS // 2
+    snake = collections.deque([(sr, sc)])
+    snake_set = {(sr, sc)}
+    score = 0
+    move_acc = 0.0
+
+    apple = spawn_apple(snake_set, GRID_COLS, GRID_ROWS)
+    game_over = False
+    game_over_timer = 0.0
+
+    ff = start_ffmpeg() if RECORD_VIDEO else None
+
+    running = True
+    try:
+        while running:
+            frame_dt = clock.tick(FPS) / 1000.0
+
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    running = False
+                elif e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
+                    running = False
+
+            # ── LOGICĂ JOC ───────────────────────────────────────
+            if not game_over:
+                move_acc += frame_dt
+                step_t = 1.0 / SNAKE_SPEED
+
+                while move_acc >= step_t and not game_over:
+                    move_acc -= step_t
+
+                    head = snake[0]
+                    obstacles = snake_set - {head}
+                    path = bfs_path(head, apple, obstacles, GRID_COLS, GRID_ROWS)
+
+                    if not path:
+                        game_over = True
+                        break
+
+                    dr, dc = path[0]
+                    new_head = (head[0] + dr, head[1] + dc)
+                    ate = (new_head == apple)
+
+                    snake.appendleft(new_head)
+                    snake_set.add(new_head)
+
+                    if ate:
+                        score += 1
+                        apple = spawn_apple(snake_set, GRID_COLS, GRID_ROWS)
+                        if apple is None:
+                            game_over = True  # grid plin
+                    else:
+                        snake_set.discard(snake.pop())
+            else:
+                game_over_timer += frame_dt
+                if game_over_timer >= GAME_OVER_PAUSE:
+                    running = False
+
+            # ── RENDER ──────────────────────────────────────────
+            canvas.fill(BG_COLOR)
+
+            # Scor (sus centru)
+            score_surf = font.render(str(score), True, SCORE_COLOR)
+            score_rect = score_surf.get_rect(midtop=(CW // 2, 30))
+            canvas.blit(score_surf, score_rect)
+
+            # Măr
+            if apple:
+                pygame.draw.circle(canvas, APPLE_COLOR, cell_center(*apple), radius)
+
+            # Corp șarpe
+            for seg in snake:
+                pygame.draw.circle(canvas, SNAKE_COLOR, cell_center(*seg), radius)
+
+            # Cap (mai închis)
+            pygame.draw.circle(canvas, SNAKE_HEAD_COLOR, cell_center(*snake[0]), radius)
+
+            # Afișare scalată
+            scaled = pygame.transform.smoothscale(canvas, screen.get_size())
+            screen.blit(scaled, (0, 0))
+            pygame.display.flip()
+
+            # Înregistrare
+            if ff and ff.stdin:
+                ff.stdin.write(pygame.image.tostring(canvas, "RGB"))
+
+    finally:
+        pygame.quit()
+        if ff and ff.stdin:
+            try:
+                ff.stdin.close()
+            except Exception:
+                pass
+            ff.wait()
+
+
+if __name__ == "__main__":
+    main()
